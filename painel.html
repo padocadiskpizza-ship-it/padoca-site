@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Controle - Padoca</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #070b0e; color: #e2e8f0; margin: 0; padding: 25px; }
+        .login-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:#070b0e; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:1000; }
+        .hidden { display: none !important; }
+        h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 25px; }
+        
+        .status-container { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; background: #0f1922; padding: 18px 25px; border-radius: 12px; width: fit-content; border: 1px solid #1a2e3f; }
+        .btn-status { padding: 12px 30px; border: none; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; }
+        .online { background: #10b981; color: #fff; }
+        .offline { background: #ef4444; color: #fff; }
+        
+        .grid-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 20px; }
+        .pedido-card { background: #0f1922; padding: 20px; border-radius: 12px; border: 1px solid #1a2e3f; box-shadow: 0 10px 20px rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: space-between; }
+        .pedido-card h3 { margin: 0 0 12px 0; color: #ff9800; font-size: 20px; border-bottom: 1px solid #1a2e3f; padding-bottom: 8px; display: flex; justify-content: space-between; }
+        .pedido-card p { margin: 6px 0; font-size: 15px; color: #94a3b8; line-height: 1.4; }
+        
+        .tag-seguranca { font-size: 12px; padding: 3px 8px; border-radius: 6px; font-weight: bold; }
+        .seg-alta { background: rgba(16,185,129,0.2); color: #10b981; }
+        
+        .btn-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .btn-baixa { background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; flex: 1; font-size: 14px; text-transform: uppercase; }
+        
+        input[type="password"] { padding: 15px; width: 260px; text-align: center; font-size: 18px; border-radius: 8px; border: 1px solid #1a2e3f; background: #0f1922; color: #fff; margin-bottom: 15px; }
+        .btn-login { padding: 14px 35px; background: #ff9800; border: none; color: #000; font-weight: bold; font-size: 16px; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+        
+        /* IMPRESSÃO TÉRMICA FONTE 28 EXTRA FORTE */
+        @media print {
+            body { background: #fff; color: #000; padding: 0; margin: 0; }
+            #login-block, #painel-conteudo { display: none !important; }
+            #cupom-impressao { display: block !important; width: 80mm; font-family: sans-serif; font-size: 28px !important; font-weight: 900 !important; color: #000; line-height: 1.3; word-wrap: break-word; }
+            #cupom-impressao p, #cupom-impressao div { font-size: 28px !important; font-weight: 900 !important; color: #000 !important; }
+        }
+    </style>
+</head>
+<body>
+    <!-- TELA DE LOGIN -->
+    <div id="login-block" class="login-screen">
+        <h2 style="color: #ff9800; font-size: 24px; margin-bottom: 15px;">🔒 Painel de Gerenciamento</h2>
+        <input type="password" id="senha" placeholder="Digite a Senha"><br>
+        <button class="btn-login" onclick="verificarSenha()">ACESSAR PAINEL</button>
+    </div>
+
+    <!-- CONTEÚDO DO PAINEL -->
+    <div id="painel-conteudo" class="hidden">
+        <h1>🍕 Gestão de Pedidos em Tempo Real (Modo Simulação)</h1>
+        
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div class="status-container">
+                <strong>LOJA VIRTUAL:</strong>
+                <button id="btn-toggle-status" class="btn-status online" onclick="alternarStatusSite()">SITUACAO: ONLINE</button>
+            </div>
+
+            <div class="status-container" style="flex: 1; min-width: 300px;">
+                <strong>PROMOÇÃO DO DIA:</strong>
+                <input type="text" id="input-promo-texto" value="Ganhe uma bebida na compra de duas pizzas inteiras!" style="background: #1f1f26; color: #fff; border: 1px solid #1a2e3f; padding: 8px; border-radius: 6px; margin: 0 10px; flex: 1; font-size: 16px; width: auto;">
+                <button class="btn-status online" style="padding: 8px 15px; font-size: 14px;" onclick="salvarPromocao()">SALVAR</button>
+            </div>
+        </div>
+
+        <div class="grid-pedidos" id="lista-pedidos"></div>
+    </div>
+    
+    <!-- ÁREA RESTRITA PARA IMPRESSÃO -->
+    <div id="cupom-impressao" class="hidden"></div>
+    <script>
+        let statusSite = true;
+        
+        // Simulação de pedido para testes sem servidor ligado
+        const pedidoDeTeste = [
+            {
+                id: 104,
+                tipoCadastro: 'completo',
+                nome: 'Carlos',
+                sobrenome: 'Silva',
+                telefone: '(18) 99762-1144',
+                endereco: 'Rua das Palmeiras, Nº 452',
+                borda: 'CATUPIRY',
+                detalhe: '1x Pizza Inteira (Frango com Catupiry)',
+                observacoes: 'Massa fina, caprichar no alho frito.',
+                pagamento: 'Pix',
+                seguranca: 'Alta (Cliente Verificado)',
+                total: 69.00
+            }
+        ];
+
+        // TRAVA ANTI-EMOJI GLOBAL NO PAINEL
+        document.addEventListener('input', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                const textoLimpo = e.target.value.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F300}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{00A0}-\u{00FF}]/gu, '');
+                if (e.target.value !== textoLimpo) { e.target.value = textoLimpo; }
+            }
+        });
+
+        // GRAVAÇÃO E LEITURA DE LOGIN DIRETO PELO ARQUIVO LOCAL
+        window.onload = function() {
+            if(localStorage.getItem('padoca_auth') === 'true') {
+                liberarPainelVisual();
+            }
+        };
+        
+        function verificarSenha() {
+            if(document.getElementById('senha').value === "Padoca") {
+                localStorage.setItem('padoca_auth', 'true'); // Trava salva para sempre
+                liberarPainelVisual();
+            } else { alert("Senha Incorreta!"); }
+        }
+        
+        function liberarPainelVisual() {
+            document.getElementById('login-block').classList.add('hidden');
+            document.getElementById('painel-conteudo').classList.remove('hidden');
+            renderizarPedidoSimulado();
+        }
+        
+        function alternarStatusSite() {
+            statusSite = !statusSite;
+            const btn = document.getElementById('btn-toggle-status');
+            if(statusSite) { btn.innerText = "ONLINE (ABERTO)"; btn.className = "btn-status online"; }
+            else { btn.innerText = "FECHADO (SITE OCULTO)"; btn.className = "btn-status offline"; }
+        }
+
+        function salvarPromocao() {
+            alert("Promoção salva com sucesso para simulação local!");
+        }
+        
+        function renderizarPedidoSimulado() {
+            const container = document.getElementById('lista-pedidos');
+            if(pedidoDeTeste.length === 0) { container.innerHTML = "<p style='color: #64748b;'>Nenhum pedido na fila...</p>"; return; }
+            
+            container.innerHTML = pedidoDeTeste.map(p => {
+                const dadosTexto = encodeURIComponent(JSON.stringify(p));
+                return `
+                <div class="pedido-card">
+                    <div>
+                        <h3>Pedido #${p.id} <span class="tag-seguranca seg-alta">IA: ${p.seguranca}</span></h3>
+                        <p><strong>Tipo Cad:</strong> ✅ COMPLETO</p>
+                        <p><strong>Cliente:</strong> ${p.nome} ${p.sobrenome}</p>
+                        <p><strong>Contato:</strong> ${p.telefone}</p>
+                        <p><strong>Destino:</strong> ${p.endereco}</p>
+                        <p><strong>Borda:</strong> ${p.borda}</p>
+                        <p><strong>Pizza:</strong> ${p.detalhe}</p>
+                        <p><strong>Obs:</strong> ${p.observacoes}</p>
+                        <p><strong>Meio:</strong> ${p.pagamento}</p>
+                    </div>
+                    <div>
+                        <p style="color:#10b981; font-size:18px; font-weight:bold; margin: 15px 0 0 0;">Total: R$ ${p.total.toFixed(2)}</p>
+                        <div class="btn-actions">
+                            <button class="btn-baixa" onclick="imprimirCupom('${dadosTexto}')">🖨️ Imprimir Cupom (Fonte 28)</button>
+                            <button class="btn-baixa" style="background: #ef4444; margin-top: 5px;" onclick="document.getElementById('lista-pedidos').innerHTML='<p>Fila limpa.</p>';">✅ Concluir Pedido</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function imprimirCupom(dadosUrl) {
+            const p = JSON.parse(decodeURIComponent(dadosUrl));
+            const cupom = document.getElementById('cupom-impressao');
+            
+            cupom.innerHTML = `
+                <div>
+                    <div style="text-align:center; font-weight:bold;">=== PADOKA DISK PIZZAS ===</div>
+                    <div><b>PEDIDO #${p.id}</b></div>
+                    <div>IA SEG: ${p.seguranca}</div>
+                    <div>--------------------------------</div>
+                    <div><b>Cliente:</b> ${p.nome} ${p.sobrenome}</div>
+                    <div><b>Tel:</b> ${p.telefone}</div>
+                    <div><b>End:</b> ${p.endereco}</div>
+                    <div>--------------------------------</div>
+                    <div><b>Item:</b> ${p.detalhe}</div>
+                    <div><b>Borda:</b> ${p.borda}</div>
+                    <div><b>Obs:</b> ${p.observacoes}</div>
+                    <div>--------------------------------</div>
+                    <div><b>Pagamento:</b> ${p.pagamento}</div>
+                    <div style="font-weight:bold;">TOTAL: R$ ${p.total.toFixed(2)}</div>
+                    <div style="text-align:center;">==============================</div>
+                </div>
+            `;
+            window.print();
+        }
+    </script>
+</body>
+</html>
