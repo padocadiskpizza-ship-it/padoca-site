@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padoca Disk Pizzas</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0c0c0e; color: #f3f4f6; margin: 0; padding: 15px; font-size: 24px; padding-bottom: 150px; }
+        .wrapper { width: 100%; max-width: 600px; margin: 0 auto; }
+        .box { background: #15151a; padding: 25px; border-radius: 20px; border: 1px solid #262630; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 20px; }
+        
+        /* CORREÇÃO DO VS CODE: Adicionado background-clip padrão para remover o alerta de compatibilidade */
+        .header-title { font-size: 42px; font-weight: 800; text-align: center; margin: 0 0 5px 0; background: linear-gradient(to right, #ff9800, #ff5722); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .subtitle { font-size: 20px; text-align: center; color: #9ca3af; margin-bottom: 25px; }
+        .tabs { display: flex; gap: 10px; margin: 20px 0; }
+        .tab-btn { flex: 1; padding: 18px; background: #22222b; border: 2px solid #2e2e3a; color: #fff; font-size: 24px; font-weight: bold; border-radius: 12px; cursor: pointer; }
+        .tab-btn.active { background: #ff9800; color: #000; border-color: #ff9800; }
+        
+        .pizza-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .pizza-card { background: #1e1e24; border-radius: 14px; border: 2px solid #2e2e3a; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; }
+        .pizza-card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 10px; background: #0c0c0e; display: block; min-height: 150px; }
+        
+        .pizza-card-title { font-size: 20px; font-weight: bold; margin-top: 10px; color: #fff; line-height: 1.2; }
+        .pizza-card-price { font-size: 22px; color: #10b981; font-weight: bold; margin-top: 5px; }
+        .pizza-card.selected { border-color: #10b981; background: #112217; }
+        
+        .promo-box { font-size: 20px; color: #cbd5e1; margin: 20px 0; line-height: 1.4; background: rgba(255, 152, 0, 0.08); padding: 18px; border-radius: 12px; border: 2px dashed #ff9800; cursor: pointer; text-align: center; }
+        .cart-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #17171c; border-top: 2px solid #262630; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+        .cart-bar-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .cart-bar-total { font-size: 26px; font-weight: bold; color: #10b981; }
+        
+        .cart-btn-group { display: flex; gap: 10px; width: 100%; }
+        .cart-bar-btn { background: #10b981; color: white; padding: 15px; font-size: 22px; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; flex: 2; text-transform: uppercase; }
+        .cart-clear-btn { background: #ef4444; color: white; padding: 15px; font-size: 22px; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; flex: 1; text-transform: uppercase; }
+        
+        .cart-summary-list { font-size: 16px; color: #9ca3af; text-align: left; max-height: 80px; overflow-y: auto; width: 100%; border-bottom: 1px solid #262630; padding-bottom: 5px; }
+        
+        .hidden { display: none !important; }
+        input, select, textarea { width: 100%; padding: 16px; margin: 8px 0 15px 0; border-radius: 12px; border: 2px solid #2e2e3a; background: #1f1f26; color: #fff; box-sizing: border-box; font-size: 24px; font-weight: bold; }
+        textarea { height: 110px; resize: none; }
+        .screen-locked { position: fixed; top:0; left:0; width:100%; height:100%; background:#0c0c0e; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999; text-align:center; padding: 30px; box-sizing: border-box; }
+        .btn-acao { width: 100%; padding: 18px; background: linear-gradient(135deg, #ff9800, #f57c00); color: #000; font-size: 26px; font-weight: bold; border-radius: 12px; cursor: pointer; border: none; text-transform: uppercase; }
+        
+        .modal-pix { background: #10b981; color: #fff; padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 20px; text-align: center; font-weight: bold; }
+        .status-badge { padding: 15px; border-radius: 12px; font-weight: bold; text-align: center; margin-top: 20px; }
+        .status-aguardando { background: #f59e0b; color: #000; }
+        .status-aceito { background: #10b981; color: #fff; }
+        .status-recusado { background: #ef4444; color: #fff; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div id="aviso-fechado" class="screen-locked hidden">
+            <h1 style="color: #ef4444; font-size: 44px; margin-bottom: 10px;">🍕 PADOCA FECHADA</h1>
+            <p style="font-size: 26px; color: #9ca3af;">O site de pedidos suspendeu as operações por agora.</p>
+        </div>
+
+        <!-- TELA 1: CADASTRO SIMPLES -->
+        <div id="tela-cadastro-simples" class="box">
+            <h1 class="header-title">Padoca Disk Pizzas</h1>
+            <p class="subtitle">Cadastro de Entrega Rápido</p>
+            <input type="text" id="simples-nome" placeholder="Seu Nome Completo">
+            <input type="text" id="simples-endereco" placeholder="Seu Endereço Completo">
+            <input type="tel" id="simples-telefone" placeholder="WhatsApp / Telefone">
+            
+            <div class="promo-box" onclick="irParaCompleto()">
+                🎁 <b>Quer ganhar discounts?</b><br>
+                Clique aqui para fazer o Cadastro Completo e participar de promoções, sorteios e nosso sistema de fidelidade!
+            </div>
+            <button class="btn-acao" onclick="finalizarCadastroSimples()">Avançar para o Cardápio →</button>
+        </div>
+
+        <!-- TELA 2: CADASTRO COMPLETO -->
+        <div id="tela-cadastro-completo" class="box hidden">
+            <h1 class="header-title">Fidelidade Padoca</h1>
+            <p class="subtitle">Preencha os dados completos do sorteio</p>
+            <input type="text" id="comp-nome" placeholder="Nome">
+            <input type="text" id="comp-sobrenome" placeholder="Sobrenome">
+            <input type="tel" id="comp-telefone" placeholder="WhatsApp / Celular">
+            <input type="text" id="comp-endereco" placeholder="Nome da Rua / Avenida">
+            <input type="text" id="comp-numero" placeholder="Número da Casa ou Apt">
+            <button class="btn-acao" onclick="finalizarCadastroCompleto()">Salvar Cadastro Premiado 🏅</button>
+        </div>
+
+        <!-- TELA 3: COMPRA (CARDÁPIO) -->
+        <div id="tela-pedido" class="box hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <span style="font-weight:bold; font-size:26px;">Olá, monte seu pedido:</span>
+                <button onclick="limparSessaoCadastro()" style="background:none; border:none; color:#ff9800; font-size:18px; text-decoration:underline; cursor:pointer; width:auto; padding:0;">Mudar Usuário</button>
+            </div>
+            
+            <div id="bloco-promocao" class="promo-box"></div>
+            
+            <div class="tabs">
+                <button id="tab-inteira" class="tab-btn active" onclick="setTipo('inteira')">Pizza Inteira</button>
+                <button id="tab-metade" class="tab-btn" onclick="setTipo('metade')">Metade / Metade</button>
+            </div>
+
+            <label>Escolha a Borda Recheada para as próximas adições:</label>
+            <select id="borda-selecao">
+                <option value="nenhuma">Não Quero Borda (R$ 0,00)</option>
+                <option value="catupiry">Borda de Catupiry (+ R$ 9,00)</option>
+                <option value="cheddar">Borda de Cheddar (+ R$ 7,00)</option>
+                <option value="mussarela">Borda de Mussarela (+ R$ 9,00)</option>
+            </select>
+
+            <p id="instrucao-selecao" style="font-size:20px; color:#ff9800; font-weight:bold; margin: 10px 0; text-align:center;">Clique na pizza para adicionar ao carrinho</p>
+            <div class="pizza-grid" id="container-grid-pizzas"></div>
+            
+            <label>Observações do Pedido:</label>
+            <textarea id="observacoes" placeholder="Retirar cebola, ponto da massa, troco..."></textarea>
+            
+            <label>Forma de Pagamento:</label>
+            <select id="pagamento" onchange="verificarFormaPagamento()">
+                <option value="Pix">Pix</option>
+                <option value="Credito">Cartão de Crédito (na entrega)</option>
+                <option value="Debito">Cartão de Débito (na entrega)</option>
+                <option value="Dinheiro">Dinheiro</option>
+            </select>
+
+            <div id="alerta-pix" class="modal-pix">
+                📱 CHAVE PIX TELEFONE:<br>
+                <span style="font-size: 26px; color: #fff;">18 99128 1861</span>
+            </div>
+        </div>
+
+        <!-- TELA 4: STATUS DEL PEDIDO -->
+        <div id="tela-status-pedido" class="box hidden">
+            <h1 class="header-title">Acompanhar Pedido</h1>
+            <div id="status-container-id" style="text-align: center; margin: 15px 0; font-weight: bold;"></div>
+            <div id="status-box-mensagem"></div>
+        </div>
+    </div>
+
+    <!-- BARRA FIXA DO CARRINHO -->
+    <div id="barra-carrinho" class="cart-bar hidden">
+        <div id="carrinho-resumo-itens" class="cart-summary-list">Seu carrinho está vazio</div>
+        <div class="cart-bar-row">
+            <div class="cart-bar-total" id="carrinho-texto-total">Total: R$ 0,00</div>
+        </div>
+        <div class="cart-btn-group">
+            <button class="cart-clear-btn" onclick="limparCarrinho()">Limpar</button>
+            <button class="cart-bar-btn" onclick="enviarPedido()">Finalizar Pedido</button>
+        </div>
+    </div>
+    <script>
+        let tipoCadastro = 'simples';
+        let dadosCliente = {};
+        let cardapio = [];
+        let tipoPizza = 'inteira';
+        let carrinhoItens = []; 
+        let metadesSelecionadasTemporarias = []; 
+
+        const cardapioLocal = [
+            { id: 1, nome: "Mussarela", preco: 55.00 }, { id: 2, nome: "Marguerita", preco: 55.00 },
+            { id: 3, nome: "Calabreza", preco: 55.00 }, { id: 4, nome: "Presunto", preco: 55.00 },
+            { id: 5, nome: "Frango Bacon", preco: 64.00 }, { id: 6, nome: "Frango com Catupiry", preco: 60.00 },
+            { id: 7, nome: "Frango com Cheddar", preco: 60.00 }, { id: 8, nome: "Provolombo", preco: 60.00 },
+            { id: 9, nome: "Portuguesa", preco: 60.00 }, { id: 10, nome: "Palmito", preco: 60.00 },
+            { id: 11, nome: "Tropical", preco: 60.00 }, { id: 12, nome: "Canadense", preco: 60.00 },
+            { id: 13, nome: "Atum", preco: 60.00 }, { id: 14, nome: "Calapiry", preco: 60.00 },
+            { id: 15, nome: "Bacon", preco: 60.00 }, { id: 16, nome: "Mineira", preco: 60.00 },
+            { id: 17, nome: "Romana", preco: 60.00 }, { id: 18, nome: "Pepperoni", preco: 60.00 },
+            { id: 19, nome: "Champignom", preco: 60.00 }, { id: 20, nome: "Baiana", preco: 60.00 },
+            { id: 21, nome: "Dois Queijos", preco: 55.00 }, { id: 22, nome: "Tres Queijos", preco: 60.00 },
+            { id: 23, nome: "Quatro Queijos", preco: 65.00 }, { id: 24, nome: "Brocolis", preco: 60.00 },
+            { id: 25, nome: "Carne Seca", preco: 64.00 }, { id: 26, nome: "Pepperoni Especial", preco: 65.00 },
+            { id: 27, nome: "Americana", preco: 60.00 }, { id: 28, nome: "Escarola", preco: 60.00 }
+        ];
+
+        // TRAVA ANTI-EMOJI GLOBAL
+        document.addEventListener('input', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                const textoLimpo = e.target.value.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F300}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{00A0}-\u{00FF}]/gu, '');
+                if (e.target.value !== textoLimpo) { e.target.value = textoLimpo; }
+            }
+        });
+
+        window.onload = function() {
+            cardapio = cardapioLocal;
+            renderizarCardapio();
+            carregarPromocao();
+        };
+
+        function carregarPromocao() {
+            const bloco = document.getElementById('bloco-promocao');
+            if (tipoCadastro === 'completo') {
+                bloco.innerHTML = `🔥 <b>PROMOÇÃO EXCLUSIVA FIDELIDADE:</b><br>Ganhe uma bebida na compra de duas pizzas inteiras!`;
+                bloco.style.borderColor = "#10b981";
+            } else {
+                bloco.innerHTML = `🔒 <b>Aba de Promoções Bloqueada</b><br>Faça seu cadastro completo para promoções!`;
+                bloco.style.borderColor = "#ef4444";
+            }
+        }
+
+        function irParaCompleto() {
+            document.getElementById('tela-cadastro-simples').classList.add('hidden');
+            document.getElementById('tela-cadastro-completo').classList.remove('hidden');
+            tipoCadastro = 'completo';
+        }
+
+        function finalizarCadastroSimples() {
+            const nome = document.getElementById('simples-nome').value.trim();
+            const endereco = document.getElementById('simples-endereco').value.trim();
+            const telefone = document.getElementById('simples-telefone').value.trim();
+            if(!nome || !endereco || !telefone) { alert("Preencha todos os campos!"); return; }
+            dadosCliente = { nome, endereco, telefone, tipoCadastro: 'simples' };
+            entrarNoCardapio();
+        }
+        function finalizarCadastroCompleto() {
+            const nome = document.getElementById('comp-nome').value.trim();
+            const sobrenome = document.getElementById('comp-sobrenome').value.trim();
+            const telefone = document.getElementById('comp-telefone').value.trim();
+            const rua = document.getElementById('comp-endereco').value.trim();
+            const numero = document.getElementById('comp-numero').value.trim();
+            if(!nome || !sobrenome || !telefone || !rua || !numero) { alert("Preencha o cadastro completo!"); return; }
+            dadosCliente = { nome, sobrenome, telefone, address: `${rua}, Nº ${numero}`, tipoCadastro: 'completo' };
+            entrarNoCardapio();
+        }
+
+        function entrarNoCardapio() {
+            document.getElementById('tela-cadastro-simples').classList.add('hidden');
+            document.getElementById('tela-cadastro-completo').classList.add('hidden');
+            document.getElementById('tela-pedido').classList.remove('hidden');
+            document.getElementById('barra-carrinho').classList.remove('hidden');
+            carregarPromocao();
+        }
+
+        function limparSessaoCadastro() { location.reload(); }
+
+        function setTipo(tipo) {
+            tipoPizza = tipo;
+            metadesSelecionadasTemporarias = [];
+            document.getElementById('tab-inteira').classList.toggle('active', tipo === 'inteira');
+            document.getElementById('tab-metade').classList.toggle('active', tipo === 'metade');
+            document.getElementById('instrucao-selecao').innerText = tipo === 'inteira' ? "Clique na pizza para adicionar ao carrinho" : "Selecione duas metades para adicionar";
+            renderizarCardapio();
+        }
+
+        function renderizarCardapio() {
+            const container = document.getElementById('container-grid-pizzas');
+            container.innerHTML = cardapio.map(p => {
+                const estaSelecionada = metadesSelecionadasTemporarias.some(sel => sel.id === p.id);
+                return `
+                    <div class="pizza-card ${estaSelecionada ? 'selected' : ''}" onclick="selecionarPizza(${p.id})">
+                        <img src="imgs/img${p.id}.jpg" alt="${p.nome}" onerror="if(this.src.indexOf('.jpg') !== -1) this.src='imgs/img${p.id}.JPG';">
+                        <div class="pizza-card-title">${p.nome}</div>
+                        <div class="pizza-card-price">R$ ${p.preco.toFixed(2)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selecionarPizza(id) {
+            const pizza = cardapio.find(p => p.id === id);
+            let valorBorda = 0;
+            const bordaTipo = document.getElementById('borda-selecao').value;
+            if (bordaTipo === 'catupiry' || bordaTipo === 'mussarela') valorBorda = 9;
+            if (bordaTipo === 'cheddar') valorBorda = 7;
+            const textBorda = bordaTipo !== 'nenhuma' ? `C/ BORDA ${bordaTipo.toUpperCase()}` : 'SEM BORDA';
+
+            if (tipoPizza === 'inteira') {
+                carrinhoItens.push({
+                    nomeFormatado: `1x Pizza Inteira (${pizza.nome}) - ${textBorda}`,
+                    precoItem: pizza.preco + valorBorda
+                });
+                alert(`Pizza de ${pizza.nome} adicionada!`);
+                atualizarCarrinhoVisual();
+            } else {
+                if (metadesSelecionadasTemporarias.some(p => p.id === id)) {
+                    metadesSelecionadasTemporarias = metadesSelecionadasTemporarias.filter(p => p.id !== id);
+                } else {
+                    metadesSelecionadasTemporarias.push(pizza);
+                }
+                if (metadesSelecionadasTemporarias.length === 2) {
+                    const p1 = metadesSelecionadasTemporarias[0];
+                    const p2 = metadesSelecionadasTemporarias[1];
+                    const precoMedia = (p1.preco + p2.preco) / 2;
+                    carrinhoItens.push({
+                        nomeFormatado: `1x Pizza 1/2 ${p1.nome} | 1/2 ${p2.nome} - ${textBorda}`,
+                        precoItem: precoMedia + valorBorda
+                    });
+                    alert(`Pizza Meio a Meio adicionada!`);
+                    metadesSelecionadasTemporarias = [];
+                    atualizarCarrinhoVisual();
+                } else { renderizarCardapio(); }
+            }
+        }
+
+        function limparCarrinho() {
+            carrinhoItens = [];
+            metadesSelecionadasTemporarias = [];
+            atualizarCarrinhoVisual();
+            renderizarCardapio();
+        }
+
+        function atualizarCarrinhoVisual() {
+            const resumo = document.getElementById('carrinho-resumo-itens');
+            const totalTexto = document.getElementById('carrinho-texto-total');
+            if (carrinhoItens.length === 0) {
+                resumo.innerText = "Seu carrinho está vazio";
+                totalTexto.innerText = "Total: R$ 0,00";
+                return;
+            }
+            let somaTotal = 0;
+            let listaTexto = [];
+            carrinhoItens.forEach(item => {
+                somaTotal += item.precoItem;
+                listaTexto.push(`${item.nomeFormatado} (R$ ${item.precoItem.toFixed(2)})`);
+            });
+            resumo.innerHTML = listaTexto.join('<br>');
+            totalTexto.innerText = `Total: R$ ${somaTotal.toFixed(2)}`;
+        }
+
+        function verificarFormaPagamento() {
+            const form = document.getElementById('pagamento').value;
+            document.getElementById('alerta-pix').classList.toggle('hidden', form !== 'Pix');
+        }
+
+        function enviarPedido() {
+            if (carrinhoItens.length === 0) {
+                alert("O seu carrinho está vazio!");
+                return;
+            }
+            document.getElementById('tela-pedido').classList.add('hidden');
+            document.getElementById('barra-carrinho').classList.add('hidden');
+            document.getElementById('tela-status-pedido').classList.remove('hidden');
+            document.getElementById('status-container-id').innerText = `PEDIDO ENVIADO`;
+            document.getElementById('status-box-mensagem').innerHTML = `<div class="status-badge status-aceito">✅ SEU PEDIDO FOI ENVIADO COM SUCESSO!</div>`;
+        }
+    </script>
+</body>
+</html>
